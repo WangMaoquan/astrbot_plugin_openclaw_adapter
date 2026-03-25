@@ -203,13 +203,11 @@ class OpenClawAdapter(Star):
         # 调用 OpenClaw HTTP API 获取智能回复
         try:
             reply = await self.call_openclaw_api(message_text, user_id)
-            logger.info(f"[OpenClaw] 收到回复")
+            logger.info(f"[OpenClaw] 回复: {reply[:50]}...")
         except Exception as e:
             logger.error(f"[OpenClaw] API调用异常: {e}")
-            reply = f"处理消息失败"
-        
-        # 发送回复
-        logger.info(f"[OpenClaw] 收到回复")
+            reply = "处理消息失败"
+
         yield event.plain_result(reply)
 
     async def terminate(self):
