@@ -6,16 +6,12 @@ import os
 os.environ['no_proxy'] = '*'
 
 import asyncio
-import json
 from typing import Any, Dict, List, Optional
 
 import aiohttp
 from astrbot.api import AstrBotConfig, logger
-from astrbot.api.event import AstrMessageEvent, MessageChain, filter
+from astrbot.api.event import AstrMessageEvent, filter
 from astrbot.api.star import Context, Star, register
-from astrbot.core.message.components import Plain
-from astrbot.core.platform.astr_message_event import MessageSesion
-from astrbot.core.platform.message_type import MessageType
 from astrbot.core.star.filter.event_message_type import EventMessageType
 
 
@@ -32,16 +28,13 @@ class OpenClawAdapter(Star):
         self.config = config
         self.session = None
         
-        # 直接打印 config 对象的属性用于调试
-        
-        # 配置参数 - 处理可能的 None 值
-        ip_val = getattr(config, 'IP', None)
-        port_val = getattr(config, 'PORT', None)
-        base_url = f"http://{ip_val if ip_val else 'localhost'}:{port_val if port_val else '18789'}"
-        
-        adapter_type_val = getattr(config, 'ADAPTER_TYPE', None) or getattr(config, 'ADAPTER_TYPE_', None)
-        adapter_type = adapter_type_val if adapter_type_val else 'responses'
-        
+        # 配置参数 - 使用字典方式读取
+        ip_val = config.get('IP', 'localhost')
+        port_val = config.get('PORT', '18789')
+        base_url = f"http://{ip_val}:{port_val}"
+
+        adapter_type = config.get('ADAPTER_TYPE', 'responses')
+
         # 根据 adapter_type 选择端点
         if adapter_type == 'chat_completions':
             self.API_URL = f"{base_url}/v1/chat/completions"
@@ -49,21 +42,19 @@ class OpenClawAdapter(Star):
         else:
             self.API_URL = f"{base_url}/v1/responses"
             self.api_type = 'responses'
-        
-        token_val = getattr(config, 'OPENCLAW_TOKEN', None)
-        self.API_TOKEN = token_val if token_val else '01a616687c305d7a460e411dae07c076ad95e8849dd80744'
-        
-        agent_val = getattr(config, 'AGENT_ID', None)
-        self.AGENT_ID = agent_val if agent_val else 'main'
-        
-        # 硬编码超时配置，不再从 schema 读取
+
+        # Token 必须配置，不允许硬编码默认值
+        self.API_TOKEN = config.get('OPENCLAW_TOKEN')
+        if not self.API_TOKEN:
+            logger.error("[OpenClaw] 未配置 OPENCLAW_TOKEN，请在插件配置中设置")
+            raise ValueError("OPENCLAW_TOKEN 未配置")
+
+        self.AGENT_ID = config.get('AGENT_ID', 'main')
+
+        # 超时和重试配置
         self.TIMEOUT = 30
         self.MAX_RETRIES = 3
         self.RETRY_DELAY = 1.0
-        
-        
-        # 打印配置信息用于调试
-        token_display = self.API_TOKEN[:10] + '...' if len(self.API_TOKEN) > 10 else self.API_TOKEN
 
     async def async_init(self):
         """异步初始化"""
@@ -216,22 +207,9 @@ class OpenClawAdapter(Star):
             logger.error(f"[OpenClaw] API调用异常: {e}")
             reply = f"处理消息失败"
         
-        # 发送回复到QQ
-        try:
-            # 构造 session（使用 event 的信息）
-            session = MessageSesion(
-                event.get_platform_id() or event.get_self_id(),
-                event.get_message_type(),
-                event.get_session_id()
-            )
-            
-            msg_chain = MessageChain()
-            msg_chain.chain.append(Plain(reply))
-            
-            await self.context.send_message(session, msg_chain)
-            logger.info(f"[OpenClaw] 回复发送成功")
-        except Exception as e:
-            logger.error(f"[OpenClaw] 发送回复失败: {e}")
+        # 发送回复
+        logger.info(f"[OpenClaw] 收到回复")
+        yield event.plain_result(reply)
 
     async def terminate(self):
         """清理资源"""
