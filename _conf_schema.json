@@ -1,5 +1,5 @@
 {
-    "基础配置": {
+    "connection": {
         "description": "OpenClaw 连接配置",
         "type": "object",
         "items": {
@@ -29,7 +29,7 @@
             }
         }
     },
-    "高级配置": {
+    "behavior": {
         "description": "回复行为配置",
         "type": "object",
         "items": {

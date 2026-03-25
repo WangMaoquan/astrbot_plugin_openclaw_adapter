@@ -33,24 +33,23 @@ class OpenClawAdapter(Star):
         os.environ['no_proxy'] = '*'
 
         # 读取配置分组
-        base_config = config.get('基础配置', {})
-        advanced_config = config.get('高级配置', {})
+        connection = config.get('connection', {})
+        behavior = config.get('behavior', {})
 
-        # 基础配置
-        ip_val = base_config.get('IP', 'localhost')
-        port_val = base_config.get('PORT', '18789')
+        # 连接配置
+        ip_val = connection.get('IP', 'localhost')
+        port_val = connection.get('PORT', '18789')
         base_url = f"http://{ip_val}:{port_val}"
 
-        # Token 必须配置，不允许硬编码默认值
-        self.API_TOKEN = base_config.get('OPENCLAW_TOKEN')
+        # Token 配置（延迟检查，不阻塞加载）
+        self.API_TOKEN = connection.get('OPENCLAW_TOKEN', '')
         if not self.API_TOKEN:
-            logger.error("[OpenClaw] 未配置 OPENCLAW_TOKEN，请在插件配置中设置")
-            raise ValueError("OPENCLAW_TOKEN 未配置")
+            logger.warning("[OpenClaw] 未配置 OPENCLAW_TOKEN，请在插件配置中设置")
 
-        self.AGENT_ID = base_config.get('AGENT_ID', 'main')
+        self.AGENT_ID = connection.get('AGENT_ID', 'main')
 
-        # 高级配置
-        adapter_type = advanced_config.get('ADAPTER_TYPE', 'responses')
+        # 行为配置
+        adapter_type = behavior.get('ADAPTER_TYPE', 'responses')
 
         # 根据 adapter_type 选择端点
         if adapter_type == 'chat_completions':
@@ -66,9 +65,9 @@ class OpenClawAdapter(Star):
         self.RETRY_DELAY = 1.0
 
         # 群聊回复配置
-        self.REPLY_EMPTY_MENTION = advanced_config.get('REPLY_EMPTY_MENTION', True)
-        self.EMPTY_MENTION_REPLY = advanced_config.get('EMPTY_MENTION_REPLY', '我在~有什么可以帮你的吗？🍯')
-        self.RATE_LIMIT_SECONDS = advanced_config.get('RATE_LIMIT_SECONDS', 10)
+        self.REPLY_EMPTY_MENTION = behavior.get('REPLY_EMPTY_MENTION', True)
+        self.EMPTY_MENTION_REPLY = behavior.get('EMPTY_MENTION_REPLY', '我在~有什么可以帮你的吗？🍯')
+        self.RATE_LIMIT_SECONDS = behavior.get('RATE_LIMIT_SECONDS', 10)
 
         # 频率限制：记录每个用户的最后触发时间
         self._last_trigger_time: Dict[str, float] = {}
@@ -156,6 +155,10 @@ class OpenClawAdapter(Star):
 
     async def call_openclaw_chat_completions(self, user_message: str, user_id: str) -> str:
         """调用 Chat Completions API"""
+        # 检查 Token
+        if not self.API_TOKEN:
+            return "未配置 OPENCLAW_TOKEN，请在插件设置中配置"
+
         await self._ensure_session()
         headers = {
             "Authorization": f"Bearer {self.API_TOKEN}",
@@ -195,6 +198,10 @@ class OpenClawAdapter(Star):
 
     async def call_openclaw_responses(self, user_message: str, user_id: str) -> str:
         """调用 OpenResponses API"""
+        # 检查 Token
+        if not self.API_TOKEN:
+            return "未配置 OPENCLAW_TOKEN，请在插件设置中配置"
+
         await self._ensure_session()
         headers = {
             "Authorization": f"Bearer {self.API_TOKEN}",
