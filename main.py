@@ -14,7 +14,7 @@ from astrbot.core.star.filter.event_message_type import EventMessageType
 
 # ===== 主适配器类 =====
 @register(
-    "astrbot-plugin-openclaw-adapter",
+    "astrbot_plugin_openclaw_adapter",
     "OpenClaw",
     "OpenClaw 适配器 - HTTP API 智能回复版",
     "1.2.0"
