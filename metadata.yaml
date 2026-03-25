@@ -1,6 +1,6 @@
 name: astrbot_plugin_openclaw_adapter
 desc: OpenClaw 适配器 - 连接 OpenClaw 实现消息收发
 help: OpenClaw 适配器，用于让 astrbot 连接 OpenClaw
-version: v1.0.0
+version: v1.3.0
 author: wangmaoquan
 repo: https://github.com/WangMaoquan/astrbot_plugin_openclaw_adapter

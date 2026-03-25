@@ -10,6 +10,7 @@ import aiohttp
 from astrbot.api import AstrBotConfig, logger
 from astrbot.api.event import AstrMessageEvent, filter
 from astrbot.api.star import Context, Star, register
+from astrbot.api import message_components as Comp
 from astrbot.core.star.filter.event_message_type import EventMessageType
 
 
@@ -18,7 +19,7 @@ from astrbot.core.star.filter.event_message_type import EventMessageType
     "astrbot_plugin_openclaw_adapter",
     "OpenClaw",
     "OpenClaw 适配器 - HTTP API 智能回复版",
-    "1.2.0"
+    "1.3.0"
 )
 class OpenClawAdapter(Star):
     def __init__(self, context: Context, config: AstrBotConfig):
@@ -59,6 +60,40 @@ class OpenClawAdapter(Star):
         self.RETRY_DELAY = 1.0
 
         logger.info(f"[OpenClaw] 初始化完成 - API: {self.API_URL}, Agent: {self.AGENT_ID}")
+
+    def _is_mentioned(self, event: AstrMessageEvent) -> bool:
+        """检查机器人是否被@"""
+        self_id = str(event.get_self_id())
+        
+        # 遍历消息链，检查是否有 At 组件
+        for component in event.message_obj.message:
+            if isinstance(component, Comp.At):
+                # 检查是否 @ 的是机器人自己
+                if str(component.qq) == self_id:
+                    return True
+        
+        return False
+
+    def _should_reply(self, event: AstrMessageEvent) -> tuple[bool, str]:
+        """判断是否应该回复，返回 (是否回复, 原因)"""
+        user_id = str(event.get_sender_id())
+        self_id = str(event.get_self_id())
+        
+        # 过滤机器人自己的消息
+        if user_id == self_id:
+            return False, "自己的消息"
+        
+        group_id = event.get_group_id()
+        
+        if group_id:
+            # 群聊：只有被@才回复
+            if self._is_mentioned(event):
+                return True, f"群聊@触发 (群: {group_id})"
+            else:
+                return False, f"群聊未@ (群: {group_id})"
+        else:
+            # 私聊：所有消息都回复
+            return True, "私聊消息"
 
     async def _ensure_session(self):
         """确保 session 已初始化（线程安全）"""
@@ -195,7 +230,12 @@ class OpenClawAdapter(Star):
 
     @filter.event_message_type(EventMessageType.ALL)
     async def on_all_message(self, event: AstrMessageEvent):
-        """处理所有消息并转发给OpenClaw获取智能回复"""
+        """处理消息并转发给OpenClaw获取智能回复
+        
+        规则：
+        - 私聊：所有消息都回复
+        - 群聊：只有 @机器人 时才回复
+        """
         # 获取消息基本信息
         user_name = event.get_sender_name()
         user_id = str(event.get_sender_id())
@@ -205,12 +245,13 @@ class OpenClawAdapter(Star):
         if not message_text or not message_text.strip():
             return
 
-        # 过滤机器人自己发送的消息
-        self_id = event.get_self_id()
-        if user_id == str(self_id):
+        # 判断是否应该回复
+        should_reply, reason = self._should_reply(event)
+        if not should_reply:
+            logger.debug(f"[OpenClaw] 跳过消息 - 原因: {reason}")
             return
 
-        logger.info(f"[OpenClaw] 收到消息 - 用户: {user_name}, 内容: {message_text[:50]}...")
+        logger.info(f"[OpenClaw] 收到消息 - 用户: {user_name}, 触发: {reason}, 内容: {message_text[:50]}...")
 
         # 调用 OpenClaw HTTP API 获取智能回复
         try:
