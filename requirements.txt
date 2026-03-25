@@ -1,0 +1,5 @@
+aiofiles
+aiohttp
+msgspec
+websockets
+msgspec>=0.18.0
