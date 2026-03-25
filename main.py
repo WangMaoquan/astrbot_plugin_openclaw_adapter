@@ -19,7 +19,7 @@ from astrbot.core.star.filter.event_message_type import EventMessageType
     "astrbot_plugin_openclaw_adapter",
     "OpenClaw",
     "OpenClaw 适配器 - HTTP API 智能回复版",
-    "1.3.0"
+    "1.0.0-beta.1"
 )
 class OpenClawAdapter(Star):
     def __init__(self, context: Context, config: AstrBotConfig):
