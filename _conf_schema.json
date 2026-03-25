@@ -20,8 +20,8 @@
     "OPENCLAW_TOKEN": {
         "description": "OpenClaw 认证 Token",
         "type": "string",
-        "hint": "从 OpenClaw Gateway 配置中获取",
-        "default": "your_openclaw_token"
+        "hint": "从 OpenClaw Gateway 配置中获取（必须配置）",
+        "default": ""
     },
     "AGENT_ID": {
         "description": "Agent ID",

@@ -3,6 +3,7 @@ OpenClaw Adapter - HTTP API 智能回复版
 支持 responses 和 chat_completions 两种端点切换
 """
 import asyncio
+import os
 from typing import Any, Dict, List, Optional
 
 import aiohttp
@@ -24,7 +25,11 @@ class OpenClawAdapter(Star):
         super().__init__(context)
         self.config = config
         self.session = None
-        
+        self._session_lock = asyncio.Lock()
+
+        # 设置环境变量
+        os.environ['no_proxy'] = '*'
+
         # 配置参数 - 使用字典方式读取
         ip_val = config.get('IP', 'localhost')
         port_val = config.get('PORT', '18789')
@@ -49,22 +54,25 @@ class OpenClawAdapter(Star):
         self.AGENT_ID = config.get('AGENT_ID', 'main')
 
         # 超时和重试配置
-        self.TIMEOUT = 30
+        self.TIMEOUT = 60  # 增加超时时间
         self.MAX_RETRIES = 3
         self.RETRY_DELAY = 1.0
 
-    async def async_init(self):
-        """异步初始化"""
-        import os
-        os.environ['no_proxy'] = '*'
-        logger.info("[OpenClaw] 适配器加载中...")
-        self.session = aiohttp.ClientSession(
-            timeout=aiohttp.ClientTimeout(total=self.TIMEOUT)
-        )
-        logger.info("[OpenClaw] 适配器加载完成")
+        logger.info(f"[OpenClaw] 初始化完成 - API: {self.API_URL}, Agent: {self.AGENT_ID}")
+
+    async def _ensure_session(self):
+        """确保 session 已初始化（线程安全）"""
+        async with self._session_lock:
+            if self.session is None or self.session.closed:
+                logger.info("[OpenClaw] 初始化 HTTP Session...")
+                self.session = aiohttp.ClientSession(
+                    timeout=aiohttp.ClientTimeout(total=self.TIMEOUT)
+                )
+                logger.info("[OpenClaw] HTTP Session 初始化完成")
 
     async def call_openclaw_chat_completions(self, user_message: str, user_id: str) -> str:
         """调用 Chat Completions API"""
+        await self._ensure_session()
         headers = {
             "Authorization": f"Bearer {self.API_TOKEN}",
             "Content-Type": "application/json",
@@ -82,6 +90,7 @@ class OpenClawAdapter(Star):
             "user": user_id
         }
         
+        logger.debug(f"[OpenClaw-Chat] 请求: {user_message[:50]}...")
         try:
             async with self.session.post(
                 self.API_URL,
@@ -90,6 +99,7 @@ class OpenClawAdapter(Star):
             ) as response:
                 if response.status == 200:
                     data = await response.json()
+                    logger.debug(f"[OpenClaw-Chat] 响应: {data}")
                     return data["choices"][0]["message"]["content"]
                 else:
                     error_text = await response.text()
@@ -101,6 +111,7 @@ class OpenClawAdapter(Star):
 
     async def call_openclaw_responses(self, user_message: str, user_id: str) -> str:
         """调用 OpenResponses API"""
+        await self._ensure_session()
         headers = {
             "Authorization": f"Bearer {self.API_TOKEN}",
             "Content-Type": "application/json",
@@ -120,6 +131,7 @@ class OpenClawAdapter(Star):
             "instructions": "你是糖浆，一个温和粘人的AI助手，用🍯表情符号保持友好风格"
         }
         
+        logger.debug(f"[OpenClaw-Responses] 请求: {user_message[:50]}...")
         try:
             async with self.session.post(
                 self.API_URL,
@@ -128,6 +140,7 @@ class OpenClawAdapter(Star):
             ) as response:
                 if response.status == 200:
                     data = await response.json()
+                    logger.debug(f"[OpenClaw-Responses] 响应: {data}")
                     # 解析响应内容
                     if "output" in data and len(data["output"]) > 0:
                         output_item = data["output"][0]
@@ -183,9 +196,6 @@ class OpenClawAdapter(Star):
     @filter.event_message_type(EventMessageType.ALL)
     async def on_all_message(self, event: AstrMessageEvent):
         """处理所有消息并转发给OpenClaw获取智能回复"""
-        if not self.session:
-            await self.async_init()
-
         # 获取消息基本信息
         user_name = event.get_sender_name()
         user_id = str(event.get_sender_id())
@@ -199,7 +209,9 @@ class OpenClawAdapter(Star):
         self_id = event.get_self_id()
         if user_id == str(self_id):
             return
-        
+
+        logger.info(f"[OpenClaw] 收到消息 - 用户: {user_name}, 内容: {message_text[:50]}...")
+
         # 调用 OpenClaw HTTP API 获取智能回复
         try:
             reply = await self.call_openclaw_api(message_text, user_id)
