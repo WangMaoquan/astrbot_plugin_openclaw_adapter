@@ -1,49 +1,61 @@
 {
-    "IP": {
-        "description": "OpenClaw 服务器地址",
-        "type": "string",
-        "hint": "默认 localhost 或服务器 IP",
-        "default": "localhost"
+    "基础配置": {
+        "description": "OpenClaw 连接配置",
+        "type": "object",
+        "items": {
+            "IP": {
+                "description": "OpenClaw 服务器地址",
+                "type": "string",
+                "hint": "默认 localhost 或服务器 IP",
+                "default": "localhost"
+            },
+            "PORT": {
+                "description": "OpenClaw HTTP API 端口",
+                "type": "string",
+                "hint": "默认 18789",
+                "default": "18789"
+            },
+            "OPENCLAW_TOKEN": {
+                "description": "OpenClaw 认证 Token",
+                "type": "string",
+                "hint": "从 OpenClaw Gateway 配置中获取（必须配置）",
+                "default": ""
+            },
+            "AGENT_ID": {
+                "description": "Agent ID",
+                "type": "string",
+                "hint": "默认 main",
+                "default": "main"
+            }
+        }
     },
-    "PORT": {
-        "description": "OpenClaw HTTP API 端口",
-        "type": "string",
-        "hint": "默认 18789",
-        "default": "18789"
-    },
-    "ADAPTER_TYPE": {
-        "description": "适配器类型: responses 或 chat_completions",
-        "type": "string",
-        "hint": "responses: 使用 /v1/responses 端点, chat_completions: 使用 /v1/chat/completions 端点",
-        "default": "responses"
-    },
-    "OPENCLAW_TOKEN": {
-        "description": "OpenClaw 认证 Token",
-        "type": "string",
-        "hint": "从 OpenClaw Gateway 配置中获取（必须配置）",
-        "default": ""
-    },
-    "AGENT_ID": {
-        "description": "Agent ID",
-        "type": "string",
-        "hint": "默认 main",
-        "default": "main"
-    },
-    "REPLY_EMPTY_MENTION": {
-        "description": "群聊只有@没有消息时是否回复",
-        "type": "bool",
-        "default": true
-    },
-    "EMPTY_MENTION_REPLY": {
-        "description": "空@时的回复内容",
-        "type": "string",
-        "hint": "只有@没有消息时的自动回复",
-        "default": "我在~有什么可以帮你的吗？🍯"
-    },
-    "RATE_LIMIT_SECONDS": {
-        "description": "同一用户触发间隔（秒）",
-        "type": "int",
-        "hint": "0表示不限制，防止刷屏",
-        "default": 10
+    "高级配置": {
+        "description": "回复行为配置",
+        "type": "object",
+        "items": {
+            "ADAPTER_TYPE": {
+                "description": "适配器类型: responses 或 chat_completions",
+                "type": "string",
+                "hint": "responses: 使用 /v1/responses 端点, chat_completions: 使用 /v1/chat/completions 端点",
+                "default": "responses"
+            },
+            "REPLY_EMPTY_MENTION": {
+                "description": "群聊只有@没有消息时是否回复",
+                "type": "bool",
+                "default": true
+            },
+            "EMPTY_MENTION_REPLY": {
+                "description": "空@时的回复内容",
+                "type": "string",
+                "hint": "只有@没有消息时的自动回复",
+                "default": "我在~有什么可以帮你的吗？🍯"
+            },
+            "RATE_LIMIT_SECONDS": {
+                "description": "同一用户触发间隔（秒）",
+                "type": "int",
+                "hint": "0表示不限制，防止刷屏",
+                "default": 10
+            }
+        }
     }
 }

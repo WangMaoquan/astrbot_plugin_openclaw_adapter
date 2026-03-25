@@ -32,12 +32,25 @@ class OpenClawAdapter(Star):
         # 设置环境变量
         os.environ['no_proxy'] = '*'
 
-        # 配置参数 - 使用字典方式读取
-        ip_val = config.get('IP', 'localhost')
-        port_val = config.get('PORT', '18789')
+        # 读取配置分组
+        base_config = config.get('基础配置', {})
+        advanced_config = config.get('高级配置', {})
+
+        # 基础配置
+        ip_val = base_config.get('IP', 'localhost')
+        port_val = base_config.get('PORT', '18789')
         base_url = f"http://{ip_val}:{port_val}"
 
-        adapter_type = config.get('ADAPTER_TYPE', 'responses')
+        # Token 必须配置，不允许硬编码默认值
+        self.API_TOKEN = base_config.get('OPENCLAW_TOKEN')
+        if not self.API_TOKEN:
+            logger.error("[OpenClaw] 未配置 OPENCLAW_TOKEN，请在插件配置中设置")
+            raise ValueError("OPENCLAW_TOKEN 未配置")
+
+        self.AGENT_ID = base_config.get('AGENT_ID', 'main')
+
+        # 高级配置
+        adapter_type = advanced_config.get('ADAPTER_TYPE', 'responses')
 
         # 根据 adapter_type 选择端点
         if adapter_type == 'chat_completions':
@@ -47,23 +60,15 @@ class OpenClawAdapter(Star):
             self.API_URL = f"{base_url}/v1/responses"
             self.api_type = 'responses'
 
-        # Token 必须配置，不允许硬编码默认值
-        self.API_TOKEN = config.get('OPENCLAW_TOKEN')
-        if not self.API_TOKEN:
-            logger.error("[OpenClaw] 未配置 OPENCLAW_TOKEN，请在插件配置中设置")
-            raise ValueError("OPENCLAW_TOKEN 未配置")
-
-        self.AGENT_ID = config.get('AGENT_ID', 'main')
-
         # 超时和重试配置
         self.TIMEOUT = 60  # 增加超时时间
         self.MAX_RETRIES = 3
         self.RETRY_DELAY = 1.0
 
         # 群聊回复配置
-        self.REPLY_EMPTY_MENTION = config.get('REPLY_EMPTY_MENTION', True)
-        self.EMPTY_MENTION_REPLY = config.get('EMPTY_MENTION_REPLY', '我在~有什么可以帮你的吗？🍯')
-        self.RATE_LIMIT_SECONDS = config.get('RATE_LIMIT_SECONDS', 10)
+        self.REPLY_EMPTY_MENTION = advanced_config.get('REPLY_EMPTY_MENTION', True)
+        self.EMPTY_MENTION_REPLY = advanced_config.get('EMPTY_MENTION_REPLY', '我在~有什么可以帮你的吗？🍯')
+        self.RATE_LIMIT_SECONDS = advanced_config.get('RATE_LIMIT_SECONDS', 10)
 
         # 频率限制：记录每个用户的最后触发时间
         self._last_trigger_time: Dict[str, float] = {}
