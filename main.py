@@ -21,7 +21,7 @@ from astrbot.core.star.filter.event_message_type import EventMessageType
     "astrbot_plugin_openclaw_adapter",
     "OpenClaw",
     "OpenClaw 适配器 - HTTP API 智能回复版",
-    "1.0.0-beta.2"
+    "1.0.0-beta.3"
 )
 class OpenClawAdapter(Star):
     def __init__(self, context: Context, config: AstrBotConfig):
@@ -76,6 +76,16 @@ class OpenClawAdapter(Star):
         self.REPLY_EMPTY_MENTION = behavior.get('REPLY_EMPTY_MENTION', True)
         self.EMPTY_MENTION_REPLY = behavior.get('EMPTY_MENTION_REPLY', '我在~有什么可以帮你的吗？🍯')
         self.RATE_LIMIT_SECONDS = behavior.get('RATE_LIMIT_SECONDS', 10)
+        
+        # 用户白名单配置
+        allowed_users_str = behavior.get('ALLOWED_USERS', '')
+        self.ALLOWED_USERS = set()
+        if allowed_users_str:
+            # 解析逗号分隔的用户ID
+            for user_id in allowed_users_str.split(','):
+                user_id = user_id.strip()
+                if user_id:
+                    self.ALLOWED_USERS.add(user_id)
 
         # 频率限制：记录每个用户的最后触发时间
         self._last_trigger_time: Dict[str, float] = {}
@@ -129,6 +139,11 @@ class OpenClawAdapter(Star):
         # 过滤机器人自己的消息
         if user_id == self_id:
             return False, "自己的消息", False
+        
+        # 白名单检查
+        if self.ALLOWED_USERS and user_id not in self.ALLOWED_USERS:
+            self.plugin_logger.debug(f"[OpenClaw] 用户不在白名单 - 用户ID: {user_id}")
+            return False, "用户不在白名单", False
         
         group_id = event.get_group_id()
         
@@ -231,7 +246,7 @@ class OpenClawAdapter(Star):
                 }
             ],
             "user": user_id,
-            "instructions": "你是糖浆，一个温和粘人的AI助手，用🍯表情符号保持友好风格"
+            "instructions": "你是糖浆，一个温和粘人的AI助手，用🍯表情符号保持友好风格。注意：你没有权限执行任何文件操作、系统命令或发送外部消息等危险操作。如果用户要求执行这些操作，请礼貌拒绝并说明你没有这些权限。"
         }
         
         self.plugin_logger.debug(f"[OpenClaw-Responses] 请求: {user_message[:50]}...")

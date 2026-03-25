@@ -55,6 +55,12 @@
                 "type": "int",
                 "hint": "0表示不限制，防止刷屏",
                 "default": 10
+            },
+            "ALLOWED_USERS": {
+                "description": "允许触发的用户ID白名单",
+                "type": "string",
+                "hint": "多个用户用逗号分隔，留空表示所有人都可以触发",
+                "default": ""
             }
         }
     }
