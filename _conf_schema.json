@@ -3,6 +3,12 @@
         "description": "OpenClaw 连接配置",
         "type": "object",
         "items": {
+            "PROTOCOL": {
+                "description": "协议类型",
+                "type": "string",
+                "hint": "http 或 https，远程服务器通常使用 https",
+                "default": "http"
+            },
             "IP": {
                 "description": "OpenClaw 服务器地址",
                 "type": "string",

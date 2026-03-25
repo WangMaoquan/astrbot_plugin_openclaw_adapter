@@ -21,7 +21,7 @@ from astrbot.core.star.filter.event_message_type import EventMessageType
     "astrbot_plugin_openclaw_adapter",
     "OpenClaw",
     "OpenClaw 适配器 - HTTP API 智能回复版",
-    "1.0.0-beta.3"
+    "1.0.0-beta.4"
 )
 class OpenClawAdapter(Star):
     def __init__(self, context: Context, config: AstrBotConfig):
@@ -38,9 +38,10 @@ class OpenClawAdapter(Star):
         behavior = config.get('behavior', {})
 
         # 连接配置
+        protocol = connection.get('PROTOCOL', 'http')
         ip_val = connection.get('IP', 'localhost')
         port_val = connection.get('PORT', '18789')
-        base_url = f"http://{ip_val}:{port_val}"
+        base_url = f"{protocol}://{ip_val}:{port_val}"
 
         # 根据环境设置日志级别
         self.DEBUG = ip_val in ['localhost', '127.0.0.1']
@@ -175,8 +176,10 @@ class OpenClawAdapter(Star):
         async with self._session_lock:
             if self.session is None or self.session.closed:
                 logger.info("[OpenClaw] 初始化 HTTP Session...")
+                connector = aiohttp.TCPConnector(ssl=False)
                 self.session = aiohttp.ClientSession(
-                    timeout=aiohttp.ClientTimeout(total=self.TIMEOUT)
+                    timeout=aiohttp.ClientTimeout(total=self.TIMEOUT),
+                    connector=connector
                 )
                 logger.info("[OpenClaw] HTTP Session 初始化完成")
 
