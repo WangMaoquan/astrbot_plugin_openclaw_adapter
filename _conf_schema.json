@@ -20,12 +20,6 @@
                 "type": "string",
                 "hint": "从 OpenClaw Gateway 配置中获取（必须配置）",
                 "default": ""
-            },
-            "AGENT_ID": {
-                "description": "Agent ID",
-                "type": "string",
-                "hint": "默认 main",
-                "default": "main"
             }
         }
     },
@@ -33,6 +27,12 @@
         "description": "回复行为配置",
         "type": "object",
         "items": {
+            "AGENT_ID": {
+                "description": "Agent ID",
+                "type": "string",
+                "hint": "指定使用的 Agent，默认 main",
+                "default": "main"
+            },
             "ADAPTER_TYPE": {
                 "description": "适配器类型: responses 或 chat_completions",
                 "type": "string",

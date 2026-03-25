@@ -3,6 +3,7 @@ OpenClaw Adapter - HTTP API 智能回复版
 支持 responses 和 chat_completions 两种端点切换
 """
 import asyncio
+import logging
 import os
 import time
 from typing import Any, Dict, List, Optional
@@ -41,14 +42,21 @@ class OpenClawAdapter(Star):
         port_val = connection.get('PORT', '18789')
         base_url = f"http://{ip_val}:{port_val}"
 
+        # 根据环境设置日志级别
+        self.DEBUG = ip_val in ['localhost', '127.0.0.1']
+        self.plugin_logger = logging.getLogger("astrbot_plugin_openclaw_adapter")
+        if self.DEBUG:
+            self.plugin_logger.setLevel(logging.DEBUG)
+        else:
+            self.plugin_logger.setLevel(logging.INFO)
+
         # Token 配置（延迟检查，不阻塞加载）
         self.API_TOKEN = connection.get('OPENCLAW_TOKEN', '')
         if not self.API_TOKEN:
             logger.warning("[OpenClaw] 未配置 OPENCLAW_TOKEN，请在插件配置中设置")
 
-        self.AGENT_ID = connection.get('AGENT_ID', 'main')
-
         # 行为配置
+        self.AGENT_ID = behavior.get('AGENT_ID', 'main')
         adapter_type = behavior.get('ADAPTER_TYPE', 'responses')
 
         # 根据 adapter_type 选择端点
@@ -74,6 +82,8 @@ class OpenClawAdapter(Star):
 
         logger.info(f"[OpenClaw] 初始化完成 - API: {self.API_URL}, Agent: {self.AGENT_ID}")
         logger.info(f"[OpenClaw] 频率限制: {self.RATE_LIMIT_SECONDS}秒, 空@回复: {self.REPLY_EMPTY_MENTION}")
+        if self.DEBUG:
+            logger.info("[OpenClaw] 开发环境模式 - 详细日志已启用")
 
     def _is_mentioned(self, event: AstrMessageEvent) -> bool:
         """检查机器人是否被@"""
@@ -125,6 +135,7 @@ class OpenClawAdapter(Star):
         # 检查频率限制
         allowed, wait_time = self._check_rate_limit(user_id)
         if not allowed:
+            self.plugin_logger.debug(f"[OpenClaw] 频率限制拦截 - 用户: {user_id}, 等待: {wait_time:.1f}秒")
             return False, f"频率限制（请等待 {wait_time:.1f} 秒）", False
         
         if group_id:
@@ -138,6 +149,7 @@ class OpenClawAdapter(Star):
                         return False, f"群聊空@但已禁用回复 (群: {group_id})", False
                 return True, f"群聊@触发 (群: {group_id})", False
             else:
+                self.plugin_logger.debug(f"[OpenClaw] 群聊未@ - 群: {group_id}")
                 return False, f"群聊未@ (群: {group_id})", False
         else:
             # 私聊：所有消息都回复
@@ -177,7 +189,7 @@ class OpenClawAdapter(Star):
             "user": user_id
         }
         
-        logger.debug(f"[OpenClaw-Chat] 请求: {user_message[:50]}...")
+        self.plugin_logger.debug(f"[OpenClaw-Chat] 请求: {user_message[:50]}...")
         try:
             async with self.session.post(
                 self.API_URL,
@@ -186,7 +198,7 @@ class OpenClawAdapter(Star):
             ) as response:
                 if response.status == 200:
                     data = await response.json()
-                    logger.debug(f"[OpenClaw-Chat] 响应: {data}")
+                    self.plugin_logger.debug(f"[OpenClaw-Chat] 响应: {data}")
                     return data["choices"][0]["message"]["content"]
                 else:
                     error_text = await response.text()
@@ -222,7 +234,7 @@ class OpenClawAdapter(Star):
             "instructions": "你是糖浆，一个温和粘人的AI助手，用🍯表情符号保持友好风格"
         }
         
-        logger.debug(f"[OpenClaw-Responses] 请求: {user_message[:50]}...")
+        self.plugin_logger.debug(f"[OpenClaw-Responses] 请求: {user_message[:50]}...")
         try:
             async with self.session.post(
                 self.API_URL,
@@ -231,7 +243,7 @@ class OpenClawAdapter(Star):
             ) as response:
                 if response.status == 200:
                     data = await response.json()
-                    logger.debug(f"[OpenClaw-Responses] 响应: {data}")
+                    self.plugin_logger.debug(f"[OpenClaw-Responses] 响应: {data}")
                     # 解析响应内容
                     if "output" in data and len(data["output"]) > 0:
                         output_item = data["output"][0]
@@ -301,7 +313,7 @@ class OpenClawAdapter(Star):
         # 判断是否应该回复
         should_reply, reason, is_empty_mention = self._should_reply(event)
         if not should_reply:
-            logger.debug(f"[OpenClaw] 跳过消息 - 用户: {user_name}, 原因: {reason}")
+            self.plugin_logger.debug(f"[OpenClaw] 跳过消息 - 用户: {user_name}, 原因: {reason}")
             return
 
         # 处理空@情况
