@@ -17,31 +17,31 @@
 
 ### 连接配置 (connection)
 
-| 参数 | 说明 | 默认值 |
-|------|------|--------|
-| IP | OpenClaw 服务器地址 | `localhost` |
-| PORT | OpenClaw HTTP API 端口 | `18789` |
-| OPENCLAW_TOKEN | 认证 Token（**必须配置**） | - |
+| 参数           | 说明                       | 默认值      |
+| -------------- | -------------------------- | ----------- |
+| IP             | OpenClaw 服务器地址        | `localhost` |
+| PORT           | OpenClaw HTTP API 端口     | `18789`     |
+| OPENCLAW_TOKEN | 认证 Token（**必须配置**） | -           |
 
 ### 行为配置 (behavior)
 
-| 参数 | 说明 | 默认值 |
-|------|------|--------|
-| AGENT_ID | Agent ID | `main` |
-| ADAPTER_TYPE | 端点类型 | `responses` |
-| REPLY_EMPTY_MENTION | 群聊空 @时是否回复 | `true` |
-| EMPTY_MENTION_REPLY | 空 @回复内容 | `我在~有什么可以帮你的吗？🍯` |
-| RATE_LIMIT_SECONDS | 频率限制（秒），0=不限制 | `10` |
+| 参数                | 说明                     | 默认值                        |
+| ------------------- | ------------------------ | ----------------------------- |
+| AGENT_ID            | Agent ID                 | `main`                        |
+| ADAPTER_TYPE        | 端点类型                 | `responses`                   |
+| REPLY_EMPTY_MENTION | 群聊空 @时是否回复       | `true`                        |
+| EMPTY_MENTION_REPLY | 空 @回复内容             | `我在~有什么可以帮你的吗？🍯` |
+| RATE_LIMIT_SECONDS  | 频率限制（秒），0=不限制 | `10`                          |
 
 ## 回复规则
 
-| 场景 | 行为 |
-|------|------|
-| 私聊消息 | ✅ 所有消息都回复 |
-| 群聊 @机器人 | ✅ 回复 |
-| 群聊无 @ | ❌ 不回复 |
-| 群聊空 @ | ✅ 回复默认内容（可配置关闭） |
-| 频率限制内 | ❌ 不回复 |
+| 场景         | 行为                          |
+| ------------ | ----------------------------- |
+| 私聊消息     | ✅ 所有消息都回复             |
+| 群聊 @机器人 | ✅ 回复                       |
+| 群聊无 @     | ❌ 不回复                     |
+| 群聊空 @     | ✅ 回复默认内容（可配置关闭） |
+| 频率限制内   | ❌ 不回复                     |
 
 ## 端点切换
 
@@ -67,11 +67,11 @@
 https://github.com/WangMaoquan/astrbot_plugin_openclaw_adapter
 ```
 
-### 方式二：本地开发
+### 方式二：本地安装
 
 ```bash
 # 克隆到 AstrBot 插件目录
-git clone https://github.com/WangMaoquan/astrbot_plugin_openclaw_adapter.git ~/.astrbot/data/plugins/astrbot_plugin_openclaw_adapter
+git clone https://github.com/WangMaoquan/astrbot_plugin_openclaw_adapter.git <你的astrbot安装目录下的plugin目录下>
 
 # 配置 Token 后重载插件
 ```
@@ -81,16 +81,6 @@ git clone https://github.com/WangMaoquan/astrbot_plugin_openclaw_adapter.git ~/.
 1. 进入 OpenClaw Gateway 配置文件 `~/.openclaw/openclaw.json`
 2. 找到 `gateway.auth.tokens` 数组
 3. 复制其中一个 token 值
-
-## 开发
-
-```bash
-# 本地开发目录
-~/project/astrbot_plugin_openclaw_adapter/
-
-# 运行目录（软链接或复制）
-~/.astrbot/data/plugins/astrbot_plugin_openclaw_adapter/
-```
 
 ## 版本历史
 
