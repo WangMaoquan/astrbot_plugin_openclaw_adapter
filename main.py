@@ -2,9 +2,6 @@
 OpenClaw Adapter - HTTP API 智能回复版
 支持 responses 和 chat_completions 两种端点切换
 """
-import os
-os.environ['no_proxy'] = '*'
-
 import asyncio
 from typing import Any, Dict, List, Optional
 
@@ -17,7 +14,7 @@ from astrbot.core.star.filter.event_message_type import EventMessageType
 
 # ===== 主适配器类 =====
 @register(
-    "openclaw_adapter",
+    "astrbot-plugin-openclaw-adapter",
     "OpenClaw",
     "OpenClaw 适配器 - HTTP API 智能回复版",
     "1.2.0"
@@ -58,6 +55,8 @@ class OpenClawAdapter(Star):
 
     async def async_init(self):
         """异步初始化"""
+        import os
+        os.environ['no_proxy'] = '*'
         logger.info("[OpenClaw] 适配器加载中...")
         self.session = aiohttp.ClientSession(
             timeout=aiohttp.ClientTimeout(total=self.TIMEOUT)
@@ -183,21 +182,23 @@ class OpenClawAdapter(Star):
 
     @filter.event_message_type(EventMessageType.ALL)
     async def on_all_message(self, event: AstrMessageEvent):
-        """处理所有QQ消息并转发给OpenClaw获取智能回复"""
+        """处理所有消息并转发给OpenClaw获取智能回复"""
         if not self.session:
             await self.async_init()
-        
+
         # 获取消息基本信息
         user_name = event.get_sender_name()
         user_id = str(event.get_sender_id())
         message_text = event.message_str
-        
-        if not message_text.strip():
+
+        # 过滤空消息
+        if not message_text or not message_text.strip():
             return
-        
-        # 确保 session 已初始化
-        if not self.session:
-            await self.async_init()
+
+        # 过滤机器人自己发送的消息
+        self_id = event.get_self_id()
+        if user_id == str(self_id):
+            return
         
         # 调用 OpenClaw HTTP API 获取智能回复
         try:
