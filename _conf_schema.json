@@ -28,5 +28,22 @@
         "type": "string",
         "hint": "默认 main",
         "default": "main"
+    },
+    "REPLY_EMPTY_MENTION": {
+        "description": "群聊只有@没有消息时是否回复",
+        "type": "bool",
+        "default": true
+    },
+    "EMPTY_MENTION_REPLY": {
+        "description": "空@时的回复内容",
+        "type": "string",
+        "hint": "只有@没有消息时的自动回复",
+        "default": "我在~有什么可以帮你的吗？🍯"
+    },
+    "RATE_LIMIT_SECONDS": {
+        "description": "同一用户触发间隔（秒）",
+        "type": "int",
+        "hint": "0表示不限制，防止刷屏",
+        "default": 10
     }
 }

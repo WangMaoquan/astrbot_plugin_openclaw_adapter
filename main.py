@@ -4,6 +4,7 @@ OpenClaw Adapter - HTTP API 智能回复版
 """
 import asyncio
 import os
+import time
 from typing import Any, Dict, List, Optional
 
 import aiohttp
@@ -19,7 +20,7 @@ from astrbot.core.star.filter.event_message_type import EventMessageType
     "astrbot_plugin_openclaw_adapter",
     "OpenClaw",
     "OpenClaw 适配器 - HTTP API 智能回复版",
-    "1.0.0-beta.1"
+    "1.0.0-beta.2"
 )
 class OpenClawAdapter(Star):
     def __init__(self, context: Context, config: AstrBotConfig):
@@ -59,7 +60,16 @@ class OpenClawAdapter(Star):
         self.MAX_RETRIES = 3
         self.RETRY_DELAY = 1.0
 
+        # 群聊回复配置
+        self.REPLY_EMPTY_MENTION = config.get('REPLY_EMPTY_MENTION', True)
+        self.EMPTY_MENTION_REPLY = config.get('EMPTY_MENTION_REPLY', '我在~有什么可以帮你的吗？🍯')
+        self.RATE_LIMIT_SECONDS = config.get('RATE_LIMIT_SECONDS', 10)
+
+        # 频率限制：记录每个用户的最后触发时间
+        self._last_trigger_time: Dict[str, float] = {}
+
         logger.info(f"[OpenClaw] 初始化完成 - API: {self.API_URL}, Agent: {self.AGENT_ID}")
+        logger.info(f"[OpenClaw] 频率限制: {self.RATE_LIMIT_SECONDS}秒, 空@回复: {self.REPLY_EMPTY_MENTION}")
 
     def _is_mentioned(self, event: AstrMessageEvent) -> bool:
         """检查机器人是否被@"""
@@ -74,26 +84,60 @@ class OpenClawAdapter(Star):
         
         return False
 
-    def _should_reply(self, event: AstrMessageEvent) -> tuple[bool, str]:
-        """判断是否应该回复，返回 (是否回复, 原因)"""
+    def _check_rate_limit(self, user_id: str) -> tuple[bool, float]:
+        """检查频率限制，返回 (是否允许, 剩余等待时间)"""
+        if self.RATE_LIMIT_SECONDS <= 0:
+            return True, 0
+        
+        now = time.time()
+        last_time = self._last_trigger_time.get(user_id, 0)
+        elapsed = now - last_time
+        
+        if elapsed < self.RATE_LIMIT_SECONDS:
+            return False, self.RATE_LIMIT_SECONDS - elapsed
+        
+        # 更新触发时间
+        self._last_trigger_time[user_id] = now
+        return True, 0
+
+    def _should_reply(self, event: AstrMessageEvent) -> tuple[bool, str, bool]:
+        """判断是否应该回复，返回 (是否回复, 原因, 是否是空@)
+        
+        返回值:
+            - 是否回复: bool
+            - 原因: str
+            - 是否是空@: bool (用于判断回复默认内容)
+        """
         user_id = str(event.get_sender_id())
         self_id = str(event.get_self_id())
+        message_text = event.message_str.strip()
         
         # 过滤机器人自己的消息
         if user_id == self_id:
-            return False, "自己的消息"
+            return False, "自己的消息", False
         
         group_id = event.get_group_id()
+        
+        # 检查频率限制
+        allowed, wait_time = self._check_rate_limit(user_id)
+        if not allowed:
+            return False, f"频率限制（请等待 {wait_time:.1f} 秒）", False
         
         if group_id:
             # 群聊：只有被@才回复
             if self._is_mentioned(event):
-                return True, f"群聊@触发 (群: {group_id})"
+                # 检查是否只有@没有消息
+                if not message_text:
+                    if self.REPLY_EMPTY_MENTION:
+                        return True, f"群聊空@ (群: {group_id})", True
+                    else:
+                        return False, f"群聊空@但已禁用回复 (群: {group_id})", False
+                return True, f"群聊@触发 (群: {group_id})", False
             else:
-                return False, f"群聊未@ (群: {group_id})"
+                return False, f"群聊未@ (群: {group_id})", False
         else:
             # 私聊：所有消息都回复
-            return True, "私聊消息"
+            return True, "私聊消息", False
 
     async def _ensure_session(self):
         """确保 session 已初始化（线程安全）"""
@@ -235,20 +279,23 @@ class OpenClawAdapter(Star):
         规则：
         - 私聊：所有消息都回复
         - 群聊：只有 @机器人 时才回复
+        - 频率限制：同一用户 N 秒内只能触发 1 次
         """
         # 获取消息基本信息
         user_name = event.get_sender_name()
         user_id = str(event.get_sender_id())
-        message_text = event.message_str
-
-        # 过滤空消息
-        if not message_text or not message_text.strip():
-            return
+        message_text = event.message_str.strip()
 
         # 判断是否应该回复
-        should_reply, reason = self._should_reply(event)
+        should_reply, reason, is_empty_mention = self._should_reply(event)
         if not should_reply:
-            logger.debug(f"[OpenClaw] 跳过消息 - 原因: {reason}")
+            logger.debug(f"[OpenClaw] 跳过消息 - 用户: {user_name}, 原因: {reason}")
+            return
+
+        # 处理空@情况
+        if is_empty_mention:
+            logger.info(f"[OpenClaw] 空@回复 - 用户: {user_name}, {reason}")
+            yield event.plain_result(self.EMPTY_MENTION_REPLY)
             return
 
         logger.info(f"[OpenClaw] 收到消息 - 用户: {user_name}, 触发: {reason}, 内容: {message_text[:50]}...")
